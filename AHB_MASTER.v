@@ -9,6 +9,14 @@ module AHB_MAST #(parameter [31:0] DATA_WIDTH = 32'd32,ADDR_WIDTH = 32'd32)(
     input wire HREADY,                      // When HIGH-transfer finished, LOW to extend transfer
     input wire HRESP,                       // Transfer status(HERE ALWAYS OKAY) : LOW- OKAY, HIGH-ERROR
 
+    //CONF REGISTERs INPUTs
+    input reg                       REGs_ready,
+    input reg   [ADDR_WIDTH-1:0]    DADR,
+    input reg   [ADDR_WIDTH-1:0]    CADR,
+    input reg                       DLEN,
+    input reg                       DBIT,   
+
+
     //MASTER OUT
     output reg [ADDR_WIDTH-1:0] HADDR,      // ADDR to slave, lasts for a single HCLK cycle
     output reg [DATA_WIDTH-1:0] HWDATA,     // DATA form Master to Slave
@@ -16,7 +24,7 @@ module AHB_MAST #(parameter [31:0] DATA_WIDTH = 32'd32,ADDR_WIDTH = 32'd32)(
     output reg [2:0] HSIZE,                 // SIZE of transfer : byte, halfword or word - max 1024bits
     output reg [1:0] HTRANS,                // Transfer type:  IDLE,BUSY,NONSEQ,SEQ
     output reg HWRITE,                      // Transfer direction: HIGH-write, LOW-read
-    output reg HMASTLOCK,                   // HIGH when locked sequence
+    output reg HMASTLOCK                    // HIGH when locked sequence
     
 );
     //HTRANS TYPES
@@ -64,7 +72,7 @@ module AHB_MAST #(parameter [31:0] DATA_WIDTH = 32'd32,ADDR_WIDTH = 32'd32)(
     localparam [3:0] SINGLE_STOP    = 4'b0100;
     localparam [3:0] ADDR_BURST     = 4'b1110;
     localparam [3:0] DATA_BURST     = 4'b1101;
-    localparam [3:0] BUSY_BURST     = 4'b1011;
+ //   localparam [3:0] BUSY_BURST     = 4'b1011;
     localparam [3:0] READ_BURST     = 4'b0111;
     localparam [3:0] END_BURST      = 4'b1100;
 
@@ -146,7 +154,7 @@ always @(*) begin
             NEXT_STATE = DATA_BURST;
             NEXT_HTRANS = SEQ;
         end else begin
-            if(NEXT_HWRITE == 1'b1)
+            if(NEXT_HWRITE == 1'b1) begin
             NEXT_STATE = END_BURST;
             NEXT_HTRANS = IDLE;
         end else begin
@@ -161,10 +169,15 @@ always @(*) begin
     end
 
     DATA_BURST:
-    if(TMP_BURST = INCR) begin
+    if(TMP_BURST == INCR) begin
         if(HREADY == 1'b1) begin
-            NEXT_STATE = BUSY_BURST;
-            NEXT_HTRANS = SEQ;
+            if(NEXT_HWRITE == 1'b1) begin
+                NEXT_STATE = ADDR_BURST;
+                NEXT_HTRANS = SEQ;
+            end else begin
+                NEXT_STATE = READ_BURST;
+                NEXT_HTRANS = SEQ;
+                end
         end else begin
             NEXT_STATE = DATA_BURST;
             NEXT_HTRANS = SEQ;
@@ -175,15 +188,8 @@ always @(*) begin
         NEXT_HTRANS = IDLE;
     end
 
-    BUSY_BURST:
-        if(NEXT_HWRITE == 1'b1) begin
-            NEXT_STATE = ADDR_BURST;
-            NEXT_HTRANS = SEQ;
-        end else begin
-            NEXT_STATE = READ_BURST;
-            NEXT_HTRANS = SEQ;
-        end
 
+/// THIS READ is bad 
     READ_BURST:
         if(TMP_BURST == INCR) begin
             NEXT_STATE = ADDR_BURST;
@@ -205,7 +211,10 @@ always @(*) begin
     endcase
 end
 
-
+always @(*) begin
+    
+    case()
+end
 
 
 endmodule
